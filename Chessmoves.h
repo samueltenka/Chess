@@ -82,7 +82,7 @@ static std::vector<Move> standard_moves_from(const Position p, const Coors rc) {
    case queen:
       for(int i=-1; i<=1; ++i) {
          for(int j=-1; j<=1; ++j) {
-            if(i*j == 0) {continue;}
+            if(i==0 && j == 0) {continue;}
             for(int n=1; n<8; ++n) {
                if(append(p, moves, rc, n*i, n*j)) {break;}
             }
@@ -91,7 +91,7 @@ static std::vector<Move> standard_moves_from(const Position p, const Coors rc) {
    case king:
       for(int i=-1; i<=1; ++i) {
          for(int j=-1; j<=1; ++j) {
-            if(i*j == 0) {continue;}
+            if(i== 0 && j == 0) {continue;}
             append(p, moves, rc, i, j);
          }
       } break;
