@@ -21,19 +21,20 @@ static bool on_board(Coors rc) {
 Color flip(Color c) {
    return c==white? black : c==black? white : grey;
 }
-static bool append(const Position p, std::vector<Move> &moves, const Coors source, int rdisp, int cdisp, bool can_take=true) {
+static bool append(const Position p, std::vector<Move> &moves, const Coors source, int rdisp, int cdisp,
+                   bool can_take=true, bool must_take=false) {
    /*Returns 'true' if the next move in sequence of possible moves would be illegal.
      For example, consider the diagonal ray from a black bishop on (0,0):
      after (+2,+2) comes (+3,+3), which is illegal if (+2,+2) goes off the board or is also black,
      or if (+2,+2) is white. In the latter illegal case, as well as the legal case,
      before returning true, we append the destination to 'dests'*/
-   /*parameter 'can_take' allows for the annoying fact that pawns take differently than they move.*/
+   /*parameters 'must_take' and 'can_take' allows for the annoying fact that pawns take differently than they move.*/
    Color turn = p.board[source.r][source.c].c;
    Coors dest = {source.r+rdisp, source.c+cdisp};
-   if(!on_board(source)) {return true;}
+   if(!on_board(dest)) {return true;}
    Color taken = p.board[dest.r][dest.c].c;
    if(taken==turn) {return true;}
-   if(can_take || taken==grey) {
+   if((can_take || taken==grey) && (!must_take || taken==flip(turn))) {
       moves.push_back({source, dest, {false, false, false, empty}});
    }   
    if(taken==flip(turn)) {return true;}
@@ -46,24 +47,24 @@ static std::vector<Move> standard_moves_from(const Position p, const Coors rc) {
    switch(t.s) {
    case empty:
       break;
-   case pawn:
+   case pawn: { // these braces protect 'd' and 'n'
       int d = t.c==black ? +1 : -1;
       int n = (rc.r==1 || rc.r==6) ? 2 : 1;
       for(int i=1; i<=n; ++i) {
-         if(append(p, moves, rc, d*i, 0, false)) {break;}
+         if(append(p, moves, rc, d*i, 0, false, false)) {break;} // may not take
       }
-      append(p, moves, rc, d, -1); append(p, moves, rc, d, +1);
+      append(p, moves, rc, d, -1, true, true); append(p, moves, rc, d, +1, true, true); // must take
       break;
-   case knight:
+   } case knight:
       for(int i=-2; i<=2; ++i) {
          for(int j=-2; j<=2; ++j) {
-            if((i*j)%4 != 2) {continue;}
+            if(i*i+j*j != 5) {continue;}
             append(p, moves, rc, i, j);
          }
       } break;
    case bishop:
-      for(int i=-1; i<=1; i=1) {
-         for(int j=-1; j<=1; j=1) {
+      for(int i=-1; i<=1; i+=2) {
+         for(int j=-1; j<=1; j+=2) {
             for(int n=1; n<8; ++n) {
                if(append(p, moves, rc, n*i, n*j)) {break;}
             }
@@ -95,7 +96,7 @@ static std::vector<Move> standard_moves_from(const Position p, const Coors rc) {
          }
       } break;
    }
-   return dests;
+   return moves;
 }
 
 static std::vector<Move> special_moves_from(const Position p, const std::vector<Move> enemy_moves) {
@@ -125,7 +126,7 @@ static std::vector<Move> special_moves_from(const Position p, const std::vector<
             if(p.board[castle_r][j].s != empty) {may_castle = false; break;}
          }
          for(std::vector<Move>::const_iterator i = enemy_moves.begin(); i!= enemy_moves.end(); ++i) {
-            if(i->dest.r == may_castle && is_between(i->dest.c, 4, 7)) {may_castle = false; break;}
+            if(i->dest.r == castle_r && is_between(i->dest.c, 4, 7)) {may_castle = false; break;}
          }
          if(may_castle) {
             special_moves.push_back({{castle_r, 4}, {castle_r, 6}, {false, false, true, empty}});
@@ -141,13 +142,14 @@ static std::vector<Move> special_moves_from(const Position p, const std::vector<
             if(p.board[castle_r][j].s != empty) {may_castle = false; break;}
          }
          for(std::vector<Move>::const_iterator i = enemy_moves.begin(); i!= enemy_moves.end(); ++i) {
-            if(i->dest.r == may_castle && is_between(i->dest.c, 1, 5)) {may_castle = false; break;}
+            if(i->dest.r == castle_r && is_between(i->dest.c, 1, 5)) {may_castle = false; break;}
          }
          if(may_castle) {
             special_moves.push_back({{castle_r, 4}, {castle_r, 6}, {false, true, false, empty}});
          }
       }
    }
+   return special_moves;
 }
 
 void append(std::vector<Move> &a, const std::vector<Move> b) {
@@ -157,6 +159,7 @@ std::vector<Move> moves_from(const Position p) {
    std::vector<Move> moves, enemy_standard_moves;
    for(int r=0; r<8; ++r) {
       for(int c=0; c<8; ++c) {
+         printf("analyzing moves from %d %d...\n", r, c);
          if(p.board[r][c].s==empty) {continue;}
          std::vector<Move> new_moves = standard_moves_from(p, {r,c});
          append(p.board[r][c].c==p.turn ? moves : enemy_standard_moves, new_moves);            
@@ -204,6 +207,7 @@ Position enact_move(const Position p, const Move m) {
       }
    }
    rtrn.turn = flip(rtrn.turn);
+   return rtrn;
 }
 
 #endif //CHESSMOVES_H
