@@ -73,7 +73,7 @@ static std::vector<Move> standard_moves_from(const Position p, const Coors rc) {
    case rook:
       for(int i=-1; i<=1; ++i) {
          for(int j=-1; j<=1; ++j) {
-            if((i+j)%2 != 1) {continue;}
+            if(i*i+j*j != 1) {continue;}
             for(int n=1; n<8; ++n) {
                if(append(p, moves, rc, n*i, n*j)) {break;}
             }
